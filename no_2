@@ -1,0 +1,468 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Apr 12 12:15:05 2018
+
+@author: Samelezero
+"""
+
+#----------------------------------------------------------------------
+'''chapter Python网络爬虫系列实战教程
+* 目录
+• 2.1 使用Urllib模块进行简单网页爬取
+• 2.2 百度信息自动搜索爬虫实战
+• 2.3 自动POST请求实战
+• 2.4 Cookie处理实战
+• 2.5 浏览器伪装技术实战
+• 2.6 数据自动写入数据库实战
+• 2.7 糗事百科网络爬虫项目实战
+• 2.8 requests模块的使用
+• 2.9 BeautifulSoup的使用
+'''
+
+#----------------------------------------------------------------------
+# 2.1使用Urllib模块进行简单网页爬取
+# 2.1.1 https与http协议
+# 当http爬不到数据的时候,可是尝试把url的https改成http爬取.
+
+
+# 2.1.2 urlopen与urlretrieve以及Request
+import urllib.request
+# plan1:爬到内存中
+data=urllib.request.urlopen("https://www.so.com/").read().decode("utf-8","ignore")
+
+# plan2:爬虫内存中-方法2
+# Request存在的意义是便于在请求的时候传入一些信息,进行一次封装
+url="https://www.so.com/"
+req=urllib.request.Request(url)
+data=urllib.request.urlopen(req).read().decode("utf-8","ignore")
+
+# plan3:爬到硬盘中 retrieve:检索
+urllib.request.urlretrieve(url,filename="D:/360.html")
+
+
+# 2.1.3 获取状态码
+urllib.request.urlopen("http://www.baidu.com").getcode()
+
+#=======================================================================
+# 2.2 百度信息自动搜索爬虫实战
+'''main
+目标网址：http://www.baidu.com
+目标网址：https://www.so.com/
+需求：自动搜索某个关键词内容，并自动翻页 获取每个模块的标题
+Tips:思路
+#1.打开网页搜索python关键词
+https://www.so.com/s?ie=utf-8&fr=none&src=360sou_newhome&q=python+
+翻页观测后面几页的网址观测有哪些部分是变化的,如下所示:
+
+#2.进行翻页,并将网址粘贴在写字板/word里观测
+第二页网页
+https://www.so.com/s?q=python&pn=2&psid=aaf1c0a289c3bdedbab5
+05b7ab747ab0&src=srp_paging&fr=none
+第四页网页
+https://www.so.com/s?q=python&pn=4&psid=bb8c065d49524ecd0c7e
+86b6fcaff69e&src=srp_paging&fr=none
+
+#3.进行分析
+对上述网页地址进行观测:q=python 和 pn=4这两个提交的是关键词和所在页码
+所以我们可以在自己的所用浏览器里面,直接尝试下搜索：
+https://www.so.com/s?q=python&pn=4
+发现还是可以观测到数据
+
+#或者我们f12进行开发者模式
+点击第一行的Network然后点下面All模块的第一个网页,可以观测右边的headers
+可以看到最下面的Query string paramets里面提交的参数也是上面我们提到的
+q:python  pn:4 
+'''
+# 调用所需的库
+import urllib.request
+import re
+
+# 构建网页 https://www.so.com/s?q=%E7%88%AC%E8%99%AB&src=srp&fr=hao_360so_b&psid=3248a853cdeee9a430a2ffaf2afd6109
+url="http://www.so.com/s?q="
+key="蛋包饭"
+# 对关键词进行编码，因为URL中需要对中文等进行处理 quote:引用,引证
+key_code=urllib.request.quote(key)
+
+# 建立循环
+for i in range(1,100):
+    print("正在爬取%s页数据" %str(i))
+    # 构造网页
+    url = url + key_code + '&pn=' + str(i)
+    # plan1:爬到内存中    
+    req = urllib.request.Request(url)
+    web = urllib.request.urlopen(req).read().decode('utf-8','ignore')
+    # 状态码检测
+    urllib.request.urlopen("http://www.baidu.com").getcode()
+    ''' 
+    右击审查元素（对着你需要爬取的地方）class="res-title "
+    右击查看源代码,crt+f搜索一下 res-title
+    <h3  class="res-title"><a href="http://www.meishij.
+    net/zuofa/danbaofan_16.html" rel="noopener" data-res=
+    '{"tp":"engine","fr":"engine","stp":"cookbook","st":0,"e":2,
+    "pos":7,"m":"7e346666bcd4be4a701bc46f7d774779"}' target="_blank">
+    <em>蛋包饭</em>的做法【步骤图】_菜谱_美食杰</a></h3>
+    '''
+    # 正则提取:!一定要自己练习
+    pat = 'class=\"res-title\"><a href.*?target=\"_blank\">(.*?)</a></h3>'
+    titles = re.compile(pat,re.S).findall(web)
+    # 将各标题信息通过循环遍历输出
+    for num in range(1,len(titles)):
+        # 网页中把关键词加粗了我们利用re.sub可以剔除<em>和</em>
+        print("第"+str(num)+"条网页标题是:\n"+
+              re.sub('<em>|</em>','',titles[num]))
+        print("-----------")
+
+
+### 小羽同学布置的^-^课后任务:
+'''用其他搜索网址获取信息：
+目标网址：http://www.baidu.com
+目标网址：https://www.sogou.com
+获取流心蛋包饭的标题
+'''
+
+import re
+import urllib.request
+
+url = "http://www.baidu.com/s?wd="
+key = '流行蛋包饭'
+key_code = urllib.request.quote(key)
+url_key = url+key_code+"&ie=utf-8"
+
+#通过for循环爬取各页信息，这里爬取1到10页
+for i in range(0,10):
+    print("正在爬取"+str(i+1)+"页数据")
+    # 根据刚刚总结的url规律构造当前url
+    thisurl=url_key+"&pn="+str(i*10)
+    # 爬取这一页的数据
+    data=urllib.request.urlopen(thisurl).read().decode("utf-8","ignore")
+    # 成功得到数据
+    # 根据正则表达式将爬到的网页列表中各网页标题进行提取
+    pat ='"title":"(.*?)"'
+    rst = re.compile(pat,re.S).findall(data)
+    # 将各标题信息通过循环遍历输出
+    for j in range(0,len(rst)):
+        print("第"+str(j)+"条网页标题是:"+str(rst[j]))
+        print("-----------")
+
+
+#=======================================================================
+# 2.3 自动POST请求实战
+#自动post爬虫
+from urllib import request,parse
+
+# 输入网址
+url = 'http://www.iqianyue.com/mypost/'
+# 请求报头
+headers={'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.95 Safari/537.36'}
+# 请求参数
+params = {
+        "name":"Samelezero",
+        "pass":"9842657913", }
+
+# 对请求参数进行编码
+# 将数据使用urlencode编码处理后，使用encode()设置为utf-8编码
+data= parse.urlencode(params).encode('utf-8')
+# 对参数进行一次封装
+req = request.Request(url,data,headers,method='POST')
+web = urllib.request.urlopen(req).read()
+
+file = open("D:/posttest1.html","wb")
+file.write(web)
+file.close()
+
+#=======================================================================
+# 2.4 Cookie处理实战
+#cookie保存
+import urllib.request
+from urllib.request import build_opener
+from http.cookiejar import CookieJar
+
+#建立cookie处理
+cjar = CookieJar()
+opener = build_opener(urllib.request.HTTPCookieProcessor(cjar))
+urllib.request.install_opener(opener)
+
+#cookie读取
+print(str(cjar))
+
+#=======================================================================
+# 2.5 浏览器伪装技术实战
+import urllib.request
+url="https://www.qiushibaike.com/"
+#头文件格式header=("User-Agent",具体用户代理值)
+headers=("User-Agent","Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.22 Safari/537.36 SE 2.X MetaSr 1.0")
+opener=urllib.request.build_opener()
+opener.addheaders=[headers]
+data=opener.open(url).read()
+urllib.request.install_opener(opener)
+data=urllib.request.urlopen(url).read()
+
+import urllib.request
+url="https://www.qiushibaike.com/"
+headers={"User-Agent":"Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.22 Safari/537.36 SE 2.X MetaSr 1.0",
+        "Content-Type":"application/javascript",
+         }
+opener=urllib.request.build_opener()
+headall=[]
+for key,value in headers.items():
+    item=(key,value)
+    headall.append(item)
+
+opener.addheaders=headall
+urllib.request.install_opener(opener)
+data=urllib.request.urlopen(url).read()
+
+import urllib.request
+url="https://www.qiushibaike.com/"
+req0 = urllib.request.Request(url)
+req0.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/38.0.2125.122 Safari/537.36 SE 2.X MetaSr 1.0')
+req0data=urllib.request.urlopen(req0).read().decode("utf-8","ignore")
+
+#=======================================================================
+# 2.7 糗事百科网络爬虫项目实战
+#plan1 浏览器伪装技术
+'''
+基本的urlopen()方法不支持代理、cookie等其他的HTTP/HTTPS高级功能。
+所以要支持这些功能：使用相关的 Handler处理器 来创建特定功能的处理器对象；
+构建一个HTTPHandler 处理器对象，支持处理HTTP请求
+http_handler = urllib.request.HTTPHandler()
+
+构建一个HTTPHandler 处理器对象，支持处理HTTPS请求
+http_handler = urllib.request.HTTPSHandler()
+
+构建一个HTTPHandler 处理器对象，支持处理HTTP请求，同时开启Debug Log，debuglevel 值默认 0
+http_handler = urllib.request.HTTPHandler(debuglevel=1)
+
+调用urllib.request.build_opener()方法，创建支持处理HTTP请求的opener 对象
+opener = urllib.request.build_opener(http_handler)
+
+构建Request请求
+request = urllib.request.Request('http://www.baidu.com/')
+
+调用自定义opener对象的open()方法，发送request请求
+response = opener.open(request)
+
+print(response.read().decode('utf-8'))
+-------------------------------------------------------------
+1.urllib.request.build_opener创建支持处理HTTP请求的opener 对象
+2.addheaders增加浏览器伪装
+3.使用urllib2.install_opener()将自定义的opener对象定义为全局opener
+'''
+
+import urllib.request
+import re
+import random
+uapools=[
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.79 Safari/537.36 Edge/14.14393",
+    "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.22 Safari/537.36 SE 2.X MetaSr 1.0",
+    "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1; Maxthon 2.0)",
+    "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36"
+    ]
+  
+for i in range(0,50):
+    opener = urllib.request.build_opener()
+    thisua = random.choice(uapools)
+    ua = ("User-Agent",thisua)
+    opener.addheaders = [ua]
+    urllib.request.install_opener(opener)
+    print("当前使用UA："+str(thisua))
+    thisurl="http://www.qiushibaike.com/8hr/page/"+str(i+1)+"/?s=4948859"
+    data=urllib.request.urlopen(thisurl).read().decode("utf-8","ignore")
+    pat='<div class="content">.*?<span>(.*?)</span>.*?</div>'
+    rst=re.compile(pat,re.S).findall(data)
+    for j in range(0,len(rst)):
+        print(rst[j])
+        print('这是第%s页第%s条'%(i,j+1))
+        print("-------")
+
+
+# plan2 经过测验添加了Content-Type在爬取100页内的数据都没问题
+# 另外两个分别都出现误差
+import urllib.request
+for i in range(100):
+    url="https://www.qiushibaike.com/"
+    opener=urllib.request.build_opener()
+    '''
+    # plan2.1 两种方法
+    headers={"User-Agent":"Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.22 Safari/537.36 SE 2.X MetaSr 1.0",
+        "Content-Type":"application/javascript",}
+    headall=[]
+    for key,value in headers.items():
+        item=(key,value)
+        headall.append(item)
+    '''
+    # plan2.2
+    uapool = random.choice(uapools)
+    headall = [{"User-Agent":uapool,
+            "Content-Type":"application/javascript",}]
+    opener.addheaders=headall
+    urllib.request.install_opener(opener)
+    data=urllib.request.urlopen(url).read().decode('utf-8','ignore')
+    pat='<div class="content">.*?<span>(.*?)</span>.*?</div>'
+    rst=re.compile(pat,re.S).findall(data)
+    for j in range(len(rst)):
+        print(rst[j])
+        print('正在爬取%s页%s个'%(i+1,j+1))
+        print('--------------------')       
+        
+        
+        
+# plan3
+# 1.利用urllib.request.Request递交访问,
+# 2.利用add_header提交请求
+# 3.urllib.request.urlopen打开网页
+# 4.利用正则匹配信息
+import urllib.request
+import random
+import re
+uapools=[
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.79 Safari/537.36 Edge/14.14393",
+    "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.22 Safari/537.36 SE 2.X MetaSr 1.0",
+    "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1; Maxthon 2.0)",
+    "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36"
+    ]
+i = 25
+for i in range(100):
+    try:
+        thisurl="http://www.qiushibaike.com/8hr/page/"+str(i+1)+"/?s=4948859" 
+        req = urllib.request.Request(thisurl)
+        uapool = random.choice(uapools)
+        req.add_header('User-Agent',uapool)
+        print('现在正在使用'+uapool)
+        req_data = urllib.request.urlopen(req).read().decode("utf-8","ignore")
+        pat='<div class="content">.*?<span>(.*?)</span>.*?</div>'
+        rst=re.compile(pat,re.S).findall(req_data)
+        for j in range(0,len(rst)):
+            try:
+                print(rst[j])
+                print('这是第%s页第%s条'%(i+1,j+1))
+                print("---------------------------")
+            except Exception as err:
+                print('具体条目出现错误第'+str(j))
+                pass
+    except Exception as er:
+        pass
+    
+#----------------------------------------------------------------
+# 2.8 requests模块的使用
+import requests
+import re
+'''
+请求方式：get/post/put....
+参数;params(设置get参数),headers(报头),proxies(代理),cookies,data
+'''
+rsp=requests.get("http://www.hellobi.com")
+rsp
+# 观测是否抓取到
+len(rsp.text)
+# 匹配抬头
+re.compile("<title(.*?)</title>",re.S).findall(rsp.text)
+
+# 整洁的格式
+len(rsp.content)
+# 显示网址
+rsp.url
+# 显示编码
+rsp.encoding
+# 显示cookie
+rsp.cookies
+
+# 对于cookies格式的转化
+requests.utils.dict_from_cookiejar(rsp.cookies)
+'''Tips
+发送带参数的get请求,将key与value放入一个字典中
+通过params参数来传递,其作用相当于urllib.urlencode
+import requests
+>>> 发送get请求,通过params参数来传递
+pqyload = {'q':'杨小羽'}
+r = requests.get('http://www.so.com/s',params = pqyload)
+r.url
+r.text
+
+>>> 发送post请求,通过data参数来传递
+payload = {'a':'杨','b':'hello'}
+r = requests.post("http://httpbin.org/post", data=payload)
+r.text
+'''
+
+# 设置报头
+hd={"User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36"}
+ck=requests.utils.dict_from_cookiejar(rsp.cookies)
+rsp=requests.get("http://www.hellobi.com",headers=hd,cookies=ck)
+# 设置ip地址
+px={"http":"http://120.0.0.1:8888",
+    "https":"http://120.0.0.1:8888",}
+rsp=requests.get("http://www.hellobi.com",headers=hd,cookies=ck)
+
+key={"wd":"weiwei",}
+
+rsp=requests.get("http://www.hellobi.com",headers=hd,cookies=ck,params=key)
+# post请求
+postdata={"name":"yangbingyu",
+          "pass":"he is humorous"}
+req = requests.post("http://www.iqianyue.com/mypost/",data=postdata)
+req.content
+
+#=======================================================================
+# 2.9 BeautifulSoup的使用
+from bs4 import BeautifulSoup as bs
+import urllib.request
+data=urllib.request.urlopen("http://edu.iqianyue.com/").read().decode("utf-8")
+# bs函数把内容整理整齐
+bs1=bs(data)
+#格式化输出(打印完美的网页结构格式)
+print(bs1.prettify())
+# 获取标签:bs对象.标签名
+bs1.title
+# 获取标签里面的文字;bs对象.标签名.string(去除<title>这个种标签)
+bs1.title.string
+# 获取标签名;bs对象.标签名.name(引用<title>这个种标签)
+bs1.title.name
+# 获取某个属性对应值;bs对象.标签名.attrs
+bs1.title.attrs
+# 获取标签里面的文字;bs对象.标签名[属性名]或bs对象.标签名.get(属性名])
+bs1.a["class"]
+bs1.a.get("class")
+bs1.div["class"]
+# 提取所有节点的内容;bs对象.find_all('标签名') bs对象.find_all(['标签名'])
+bs1.find_all('a')
+bs1.find_all(['a','h3'])
+bs1.find_all(['h3'])
+# 提取所有子节点的内容;bs对象.标签.content bs对象.标签.children
+k1=bs1.ul.contents
+k2=bs1.ul.children
+allulc=[i for i in k2]
+allulc
+
+
+from bs4 import BeautifulSoup;
+from urllib.request import urlopen
+# 网页
+url = "https://book.douban.com/chart?icn=index-topchart-nonfiction"
+
+web = urlopen(url)
+
+html = web.read()
+
+soup = BeautifulSoup(html)
+print(soup)
+
+# 获取图书信息
+aSoup = soup.findAll("a", {"class":"fleft"})
+for name in aSoup:
+    namelist = name.get_text()
+    print(namelist)
+
+# 获取作者信息
+pSoup = soup.findAll("p", {"class":"subject-abstract color-gray"})
+for author in pSoup:
+    authorlist = author.get_text()
+    print(authorlist)
+
+# 获取价格信息
+spanSoup = soup.findAll("span", {"class":"buy-info"})
+for a1Soup in spanSoup :
+    a1Souplist = a1Soup.find_all('a')
+    for price in a1Souplist:
+        pricelist = price.get_text()
+        print(pricelist)
